@@ -1,53 +1,109 @@
-import Lock_ABI from "./Lock_ABI.json";
 import { BrowserProvider, Contract, parseEther, formatEther } from "ethers";
+import Lock_ABI from "./Lock_ABI.json";
 import { CONTRACT_ADDRESS } from "./constants";
 
-// Module-level variables to store provider, signer, and contract
 let provider;
 let signer;
 let contract;
 
-// Function to initialize the provider, signer, and contract
+// Hàm khởi tạo provider, signer, và contract
 const initialize = async () => {
   if (typeof window.ethereum !== "undefined") {
     provider = new BrowserProvider(window.ethereum);
     signer = await provider.getSigner();
     contract = new Contract(CONTRACT_ADDRESS, Lock_ABI, signer);
   } else {
-    console.error("Please install MetaMask!");
+    throw new Error("Please install MetaMask!");
   }
 };
 
-// Initialize once when the module is loaded
-initialize();
+// Đảm bảo contract được khởi tạo trước khi dùng
+const ensureInitialized = async () => {
+  if (!provider || !signer || !contract) {
+    await initialize();
+  }
+};
 
-// Function to request single account
+// Yêu cầu tài khoản từ MetaMask
 export const requestAccount = async () => {
   try {
+    await ensureInitialized();
     const accounts = await provider.send("eth_requestAccounts", []);
-    return accounts[0]; // Return the first account
+    return accounts[0]; // Trả về địa chỉ tài khoản đầu tiên
   } catch (error) {
     console.error("Error requesting account:", error.message);
     return null;
   }
 };
-// Function to get contract balance in ETH
+
+// Kiểm tra chủ sở hữu contract
+export const getContractOwner = async () => {
+  try {
+    await ensureInitialized();
+    const ownerAddress = await contract.owner();
+    return ownerAddress;
+  } catch (error) {
+    console.error("Error getting contract owner:", error.message);
+    return null;
+  }
+};
+
+// Kiểm tra xem tài khoản hiện tại có phải là owner không
+export const isOwner = async () => {
+  try {
+    const owner = await getContractOwner();
+    const currentAccount = await requestAccount();
+
+    return currentAccount?.toLowerCase() === owner?.toLowerCase();
+  } catch (error) {
+    console.error("Error checking ownership:", error.message);
+    return false;
+  }
+};
+
+// Lấy số dư của contract
 export const getContractBalanceInETH = async () => {
-  const balanceWei = await provider.getBalance(CONTRACT_ADDRESS);
-  const balanceEth = formatEther(balanceWei); // Convert Wei to ETH string
-  return balanceEth; // Convert ETH string to number
+  try {
+    await ensureInitialized();
+    const balanceWei = await provider.getBalance(CONTRACT_ADDRESS);
+    return formatEther(balanceWei);
+  } catch (error) {
+    console.error("Error getting contract balance:", error.message);
+    return "0";
+  }
 };
 
-// Function to deposit funds to the contract
+// Gửi ETH vào contract
 export const depositFund = async (depositValue) => {
-  const ethValue = parseEther(depositValue);
-  const deposit = await contract.deposit({ value: ethValue });
-  await deposit.wait();
+  try {
+    await ensureInitialized();
+    const ethValue = parseEther(depositValue);
+    const deposit = await contract.deposit({ value: ethValue });
+    await deposit.wait();
+    console.log(`Deposited ${depositValue} ETH successfully`);
+  } catch (error) {
+    console.error("Error depositing funds:", error.message);
+  }
 };
 
-// Function to withdraw funds from the contract
-export const withdrawFund = async () => {
-  const withdrawTx = await contract.withdraw();
-  await withdrawTx.wait();
-  console.log("Withdrawal successful!");
+// Rút tiền từ contract
+export const withdrawFund = async (amount) => {
+  try {
+    await ensureInitialized();
+
+    if (!amount || isNaN(amount) || Number(amount) <= 0) {
+      throw new Error("Invalid withdrawal amount");
+    }
+
+    const amountInWei = parseEther(amount.toString());
+    console.log("Calling withdraw with amount:", amountInWei.toString());
+
+    const withdrawTx = await contract.withdraw(amountInWei);
+    await withdrawTx.wait();
+
+    console.log(`Successfully withdrew ${amount} ETH`);
+  } catch (error) {
+    console.error("Error withdrawing funds:", error.message);
+    throw error;
+  }
 };
