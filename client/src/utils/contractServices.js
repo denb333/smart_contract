@@ -37,14 +37,37 @@ export const requestAccount = async () => {
 };
 
 // Kiểm tra chủ sở hữu contract
+// export const getContractOwner = async () => {
+//   try {
+//     await ensureInitialized();
+//     const ownerAddress = await contract.owner();
+//     return ownerAddress;
+//   } catch (error) {
+//     console.error("Error getting contract owner:", error.message);
+//     return null;
+//   }
+// };
 export const getContractOwner = async () => {
   try {
     await ensureInitialized();
-    const ownerAddress = await contract.owner();
+    const ownerAddress = await contract.owner(); // Sửa từ contract.owner() thành contract.getOwner()
     return ownerAddress;
   } catch (error) {
     console.error("Error getting contract owner:", error.message);
     return null;
+  }
+};
+export const getUserBalanceInETH = async () => {
+  try {
+    await ensureInitialized();
+    const account = await requestAccount();
+    if (!account) return "0";
+
+    const balanceWei = await contract.getUserBalance(account);
+    return formatEther(balanceWei);
+  } catch (error) {
+    console.error("Error getting user balance:", error.message);
+    return "0";
   }
 };
 
@@ -85,11 +108,41 @@ export const depositFund = async (depositValue) => {
     console.error("Error depositing funds:", error.message);
   }
 };
+export const convertTokenToETH = async (amount) => {
+  await ensureInitialized();
+  const account = await requestAccount();
+  if (!account) throw new Error("No connected account!");
+
+  const tx = await contract.convertTokenToETH(amount, { from: account });
+  await tx.wait();
+};
 
 // Rút tiền từ contract
+// export const withdrawFund = async (amount) => {
+//   try {
+//     await ensureInitialized();
+
+//     if (!amount || isNaN(amount) || Number(amount) <= 0) {
+//       throw new Error("Invalid withdrawal amount");
+//     }
+
+//     const amountInWei = parseEther(amount.toString());
+//     console.log("Calling withdraw with amount:", amountInWei.toString());
+
+//     const withdrawTx = await contract.withdraw(amountInWei);
+//     await withdrawTx.wait();
+
+//     console.log(`Successfully withdrew ${amount} ETH`);
+//   } catch (error) {
+//     console.error("Error withdrawing funds:", error.message);
+//     throw error;
+//   }
+// };
 export const withdrawFund = async (amount) => {
   try {
     await ensureInitialized();
+    const account = await requestAccount();
+    if (!account) throw new Error("No account connected!");
 
     if (!amount || isNaN(amount) || Number(amount) <= 0) {
       throw new Error("Invalid withdrawal amount");
@@ -101,9 +154,25 @@ export const withdrawFund = async (amount) => {
     const withdrawTx = await contract.withdraw(amountInWei);
     await withdrawTx.wait();
 
-    console.log(`Successfully withdrew ${amount} ETH`);
+    console.log(`Successfully withdrew ${amount} ETH to ${account}`);
   } catch (error) {
     console.error("Error withdrawing funds:", error.message);
     throw error;
   }
 };
+
+
+export const getUserTokenBalance = async () => {
+  try {
+    const accounts = await window.ethereum.request({ method: "eth_accounts" });
+    if (!accounts.length) throw new Error("No accounts found");
+
+    const balance = await contract.methods.getUserTokenBalance(accounts[0]).call();
+    // const balance = await contract.getUserTokenBalance(accounts[0]);
+    return balance;
+  } catch (error) {
+    console.error("Error fetching token balance:", error);
+    return "0";
+  }
+};
+

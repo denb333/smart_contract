@@ -1,3 +1,19 @@
 
+## Terminal 1:
+cd dapp-demo\contract
+- chạy lênh:
+npx hardhat node
+
+## Terminal 2:
+cd dapp-demo\contract 
+- chạy lệnh:
 node -e "console.log(Math.floor(Date.now() / 1000) + 60)"
+thay thời gian xxxxxxxxx đó trong file dapp-demo\contract\ignition\parameters.json
+- chạy lệnh để deploy contract:
 npx hardhat ignition deploy ./ignition/modules/Lock.ts --network localhost --parameters ./ignition/parameters.json
+mỗi lần chạy lại thì phải xoá folder D:\Code\Web\JS\test_constract\dapp-demo\contract\ignition\deployments và deploy lại contract lệnh trên
+## Terminal 3:
+cd dapp-demo\clinent
+- chạy lệnh fronend:
+npm start
+sau đó liên kết ví metamask
